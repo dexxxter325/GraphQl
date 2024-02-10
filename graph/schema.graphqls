@@ -1,0 +1,29 @@
+#используется для генерации кода на стороне сервера и клиента
+type Car {
+  id: ID!
+  brand: String!
+  model: String!
+  year: Int!
+  price: Float!
+  mileage: Int!
+  description: String!
+}
+input CarInput {
+  brand: String!
+  model: String!
+  year: Int!
+  price: Float!
+  mileage: Int!
+  description: String!
+}
+
+type Query{
+  getAllCars: [Car!]!
+  getCarById(id: ID!): Car!
+}
+
+type Mutation{
+  addCar(input: CarInput!): Car!
+  updateCar(id: ID!, input: CarInput!): Car!
+  deleteCar(id: ID!): Boolean
+}
