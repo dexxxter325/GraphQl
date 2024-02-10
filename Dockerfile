@@ -7,13 +7,13 @@ COPY ./ /GRAPHQL
 WORKDIR /GRAPHQL
 
 RUN go mod download
-RUN go build -o ./bin/api ./server.go
+RUN go build -o ./.bin/api ./server.go
 
 FROM alpine:latest
 
 WORKDIR /root/
 
-COPY --from=0 /GRAPHQL/bin/api .
+COPY --from=0 /GRAPHQL/.bin/api .
 
 EXPOSE 82
 
