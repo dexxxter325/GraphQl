@@ -18,7 +18,6 @@ jobs:
   #нам нужно облако развертывания приложения ,тк оно нам создаet эндпоинт для нашего приложения, который будет доступен в интернете.После развертывания ,я получаю URL-адресс приложения
   build_and_push:
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
