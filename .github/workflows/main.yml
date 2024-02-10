@@ -39,7 +39,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/graphql:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/$CONTAINER_NAME:$TAG_NAME
 
       #- name: Push image to Docker Hub Container Registry #пушим(отправляем) новую версию изобр. в DockerHub
       # run: docker push $REGISTRY/$IMAGE_NAME:$TAG_NAME
