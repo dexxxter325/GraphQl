@@ -4,6 +4,7 @@ package model
 
 type Car struct {
 	ID          string  `json:"id"`
+	User        *User   `json:"user"`
 	Brand       string  `json:"brand"`
 	Model       string  `json:"model"`
 	Year        int     `json:"year"`
@@ -13,6 +14,7 @@ type Car struct {
 }
 
 type CarInput struct {
+	UserID      string  `json:"userId"`
 	Brand       string  `json:"brand"`
 	Model       string  `json:"model"`
 	Year        int     `json:"year"`
@@ -25,4 +27,11 @@ type Mutation struct {
 }
 
 type Query struct {
+}
+
+type User struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }

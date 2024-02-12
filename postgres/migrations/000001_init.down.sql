@@ -1,1 +1,2 @@
 DROP TABLE cars;
+DROP TABLE users;

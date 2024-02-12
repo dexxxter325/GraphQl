@@ -1,6 +1,13 @@
 #используется для генерации кода на стороне сервера и клиента
+type User{
+  id: ID!
+  name: String!
+  username: String!
+  password: String!
+}
 type Car {
   id: ID!
+  user: User!
   brand: String!
   model: String!
   year: Int!
@@ -9,6 +16,7 @@ type Car {
   description: String!
 }
 input CarInput {
+  userId:ID!
   brand: String!
   model: String!
   year: Int!
@@ -18,6 +26,7 @@ input CarInput {
 }
 
 type Query{
+  getUserByID(userID: ID!): User!
   getAllCars: [Car!]!
   getCarById(id: ID!): Car!
 }

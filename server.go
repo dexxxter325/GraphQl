@@ -16,10 +16,10 @@ func main() {
 		log.Fatalf("err in load .env file:%s", err)
 	}
 	db, err := postgres.ConnTODB()
-	resolver := graph.NewResolver(db)
 	if err != nil {
 		log.Fatalf("failed to conn to db:%s", err)
 	}
+	resolver := graph.NewResolver(db)
 
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 
