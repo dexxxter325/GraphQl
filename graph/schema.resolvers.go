@@ -8,24 +8,38 @@ import (
 	"GRAPHQL/graph/model"
 	"context"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 // AddCar is the resolver for the addCar field.
 func (r *mutationResolver) AddCar(ctx context.Context, input model.CarInput) (*model.Car, error) {
+	tx, err := r.DB.Begin(ctx)
 	var car model.Car
 	createQuery := `INSERT INTO cars (userId,brand, model, year, price, mileage, description)
 											VALUES ($1, $2, $3, $4, $5, $6,$7)
 											RETURNING id, brand, model, year, price, mileage, description`
-	query := r.DB.QueryRow(context.Background(), createQuery, input.UserID, input.Brand, input.Model, input.Year, input.Price, input.Mileage, input.Description)
+	query := tx.QueryRow(context.Background(), createQuery, input.UserID, input.Brand, input.Model, input.Year, input.Price, input.Mileage, input.Description)
 	if err := query.Scan(&car.ID, &car.Brand, &car.Model, &car.Year, &car.Price, &car.Mileage, &car.Description); err != nil {
+		tx.Rollback(ctx)
 		return &car, fmt.Errorf("scan failed in create:%s", err)
 	}
-	user, err := r.Resolver.Query().GetUserByID(ctx, input.UserID)
+	user, err := r.Query().GetUserByID(ctx, input.UserID)
 	if err != nil {
+		tx.Rollback(ctx)
 		return nil, err
 	}
 	// Устанавливаем пользователя для добавленной машины
 	car.User = user
+
+	for _, observer := range carPublishedChannel {
+		observer <- &car
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
 	return &car, nil
 }
 
@@ -49,7 +63,7 @@ func (r *mutationResolver) DeleteCar(ctx context.Context, id string) (*bool, err
 	if err != nil {
 		return nil, fmt.Errorf("exec failed in delete:%s", err)
 	}
-	if res.RowsAffected() < 0 {
+	if res.RowsAffected() <= 0 {
 		return &fail, fmt.Errorf("this object already deleted or doesn't exist")
 	}
 	return &success, nil
@@ -108,11 +122,41 @@ func (r *queryResolver) GetCarByID(ctx context.Context, id string) (*model.Car, 
 	return &car, nil
 }
 
+var carPublishedChannel map[string]chan *model.Car
+
+func init() {
+	carPublishedChannel = map[string]chan *model.Car{}
+}
+func randString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+// CarPublished is the resolver for the carPublished field.
+func (r *subscriptionResolver) CarPublished(ctx context.Context) (<-chan *model.Car, error) {
+	id := randString(8)
+	carEvent := make(chan *model.Car, 1)
+	go func() {
+		<-ctx.Done()
+	}()
+	carPublishedChannel[id] = carEvent
+	return carEvent, nil
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

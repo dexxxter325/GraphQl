@@ -25,6 +25,10 @@ input CarInput {
   description: String!
 }
 
+type Subscription{
+  carPublished:Car!
+}
+
 type Query{
   getUserByID(userID: ID!): User!
   getAllCars: [Car!]!
