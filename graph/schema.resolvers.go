@@ -9,8 +9,14 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"time"
+	"strconv"
 )
+
+var carPublishedChannel map[string]chan *model.Car //каналы,в которых хранится инфа о тачке(ключ-id канала)
+
+func init() { //инициализируем пустую мапу для дальнейшего использования
+	carPublishedChannel = make(map[string]chan *model.Car)
+}
 
 // AddCar is the resolver for the addCar field.
 func (r *mutationResolver) AddCar(ctx context.Context, input model.CarInput) (*model.Car, error) {
@@ -32,8 +38,8 @@ func (r *mutationResolver) AddCar(ctx context.Context, input model.CarInput) (*m
 	// Устанавливаем пользователя для добавленной машины
 	car.User = user
 
-	for _, observer := range carPublishedChannel {
-		observer <- &car
+	for _, observer := range carPublishedChannel { //перебираем наши каналы
+		observer <- &car //передаем созданную машину во все каналы
 	}
 
 	if err = tx.Commit(ctx); err != nil {
@@ -122,29 +128,15 @@ func (r *queryResolver) GetCarByID(ctx context.Context, id string) (*model.Car, 
 	return &car, nil
 }
 
-var carPublishedChannel map[string]chan *model.Car
-
-func init() {
-	carPublishedChannel = map[string]chan *model.Car{}
-}
-func randString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
-}
-
 // CarPublished is the resolver for the carPublished field.
-func (r *subscriptionResolver) CarPublished(ctx context.Context) (<-chan *model.Car, error) {
-	id := randString(8)
-	carEvent := make(chan *model.Car, 1)
-	go func() {
+func (r *subscriptionResolver) CarPublished(ctx context.Context) (<-chan *model.Car, error) { //подписка для клиента
+	id := rand.Int() //id канала
+	idString := strconv.Itoa(id)
+	carEvent := make(chan *model.Car, 1) //1-канал может хранить ток 1 эл-т
+	go func() {                          //ждет,пока клиент выложит(создаст) машину
 		<-ctx.Done()
 	}()
-	carPublishedChannel[id] = carEvent
+	carPublishedChannel[idString] = carEvent //добавляем канал в мапу
 	return carEvent, nil
 }
 
