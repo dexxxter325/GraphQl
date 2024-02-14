@@ -12,5 +12,5 @@ CREATE TABLE cars (
                       year INT NOT NULL,
                       price FLOAT NOT NULL,
                       mileage INT NOT NULL,
-                      description TEXT NOT NULL
+                      description TEXT
 );
