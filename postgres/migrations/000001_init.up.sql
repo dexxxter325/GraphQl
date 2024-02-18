@@ -14,3 +14,9 @@ CREATE TABLE cars (
                       mileage INT NOT NULL,
                       description TEXT
 );
+create table sessions(
+    session_id varchar(255) primary key,
+    userId int references users(id),
+    created_at TIMESTAMP,
+    expires_at TIMESTAMP
+);

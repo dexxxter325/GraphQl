@@ -1,10 +1,4 @@
 #используется для генерации кода на стороне сервера и клиента
-type User{
-  id: ID!
-  name: String!
-  username: String!
-  password: String!
-}
 type Car {
   id: ID!
   user: User!
@@ -24,19 +18,43 @@ input CarInput {
   mileage: Int!
   description: String!
 }
-
-type Subscription{
-  carPublished:Car!
+type User{
+  id: ID!
+  name: String!
+  username: String!
+  password: String!
 }
 
-type Query{
-  getUserByID(userID: ID!): User!
-  getAllCars: [Car!]!
-  getCarById(id: ID!): Car!
+input RegisterInput{
+  name:String!
+  username:String!
+  password:String!
+}
+
+type Login{
+  sessionID:String!
+}
+
+input LoginInput{
+  username:String!
+  password:String!
 }
 
 type Mutation{
+  register(input:RegisterInput!):User!
+  login(input:LoginInput!):Login!#ID-session`s id
+  logout(id: ID!): Boolean!
   addCar(input: CarInput!): Car!
   updateCar(id: ID!, input: CarInput!): Car!
   deleteCar(id: ID!): Boolean
+}
+
+type Query{
+  getAllCars: [Car!]!
+  getCarById(id: ID!): Car!
+  getUserByID(userID: ID!): User!
+}
+
+type Subscription{
+  carPublished:Car!
 }

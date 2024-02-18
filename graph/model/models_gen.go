@@ -23,10 +23,25 @@ type CarInput struct {
 	Description string  `json:"description"`
 }
 
+type Login struct {
+	SessionID string `json:"sessionID"`
+}
+
+type LoginInput struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type Mutation struct {
 }
 
 type Query struct {
+}
+
+type RegisterInput struct {
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type Subscription struct {

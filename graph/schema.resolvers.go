@@ -9,13 +9,76 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"strconv"
+	"time"
 )
 
-var carPublishedChannel map[string]chan *model.Car //каналы,в которых хранится инфа о тачке(ключ-id канала)
+// Register is the resolver for the register field.
+func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.User, error) {
+	var user model.User
+	input.Password = generateHashPassword(input.Password)
+	createQuery := `insert into users(name,username,password) values ($1,$2,$3) RETURNING id,name,username,password`
+	query := r.DB.QueryRow(context.Background(), createQuery, input.Name, input.Username, input.Password)
+	if err := query.Scan(&user.ID, &user.Name, &user.Username, &user.Password); err != nil {
+		return &user, fmt.Errorf("failed scan in registeerr:%s", err)
+	}
+	return &user, nil
+}
 
-func init() { //инициализируем пустую мапу для дальнейшего использования
-	carPublishedChannel = make(map[string]chan *model.Car)
+// Login is the resolver for the login field.
+func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.Login, error) {
+	var login model.Login
+	user, err := r.ValidateCredentials(input.Username, input.Password)
+	if err != nil {
+		return &login, fmt.Errorf("validateCredentails in login failed:%s", err)
+	}
+	existingSessionID, err := r.getSessionByUserId(user.ID)
+	if existingSessionID != "" {
+		// Если сессия уже существует, возвращаем ее и не создаем новую
+		login.SessionID = existingSessionID
+		return &login, nil
+	}
+	sessionId, err := generateSessionID()
+	if err != nil {
+		return &login, fmt.Errorf("can`t generate sessionID in login:%s", err)
+	}
+	err = r.saveSessionToDB(sessionId, user.ID)
+	if err != nil {
+		return &login, fmt.Errorf("fail to saveSessionTODB:%s", err)
+	}
+	cookieResponse := ctx.Value("cookie").(*CookieResponseWriter)
+	cookie := &http.Cookie{
+		Name:     "session_id",
+		Value:    sessionId,
+		HttpOnly: true,
+		Expires:  time.Now().Add(time.Hour * 24 * 30),
+		Path:     "/",
+	}
+	http.SetCookie(cookieResponse.ResponseWriter, cookie)
+	//cookiereq.Header.Set("cookie", cookie.String())
+	fmt.Printf("cookie in login:%s\n", cookie)
+	login.SessionID = sessionId
+	return &login, nil
+}
+
+/*Мы должны создать в middleware структуру с setcookie с рандомным value,извлечь ее там же,затем в login заменить рандомное знач.на нужное*/
+// Logout is the resolver for the logout field.
+func (r *mutationResolver) Logout(ctx context.Context, id string) (bool, error) {
+	ca := ctx.Value("cookie").(*CookieResponseWriter)
+	http.SetCookie(ca.ResponseWriter, &http.Cookie{ //delete cookie
+		Name:     "session_id",
+		HttpOnly: true,
+	})
+	sessionsQuery := `delete from sessions where userid=$1`
+	res, err := r.DB.Exec(context.Background(), sessionsQuery, id)
+	if err != nil {
+		return false, fmt.Errorf("can`t exec in logout:%s", err)
+	}
+	if res.RowsAffected() == 0 {
+		return false, fmt.Errorf("this object already deleted or doesn't exist")
+	}
+	return true, nil
 }
 
 // AddCar is the resolver for the addCar field.
@@ -75,19 +138,6 @@ func (r *mutationResolver) DeleteCar(ctx context.Context, id string) (*bool, err
 	return &success, nil
 }
 
-// GetUsers is the resolver for the getUsers field.
-func (r *queryResolver) GetUserByID(ctx context.Context, userID string) (*model.User, error) {
-	var user model.User
-
-	getUserQuery := `SELECT id, name, username,password FROM users WHERE id = $1`
-	err := r.DB.QueryRow(ctx, getUserQuery, userID).Scan(&user.ID, &user.Name, &user.Username, &user.Password)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-
-	return &user, nil
-}
-
 // GetAllCars is the resolver for the getAllCars field.
 func (r *queryResolver) GetAllCars(ctx context.Context) ([]*model.Car, error) {
 	var cars []*model.Car
@@ -118,7 +168,7 @@ func (r *queryResolver) GetCarByID(ctx context.Context, id string) (*model.Car, 
 	var user model.User
 	getByIdQuery := `SELECT cars.id, cars.brand, cars.model, cars.year, cars.price, cars.mileage, cars.description,
 			   users.id, users.name, users.username,users.password FROM cars
-				INNER JOIN users ON cars.userid = users.id where cars.id=$1`
+				INNER JOIN users ON cars.userid = users.id where users.id=$1`
 	query := r.DB.QueryRow(context.Background(), getByIdQuery, id)
 	if err := query.Scan(&car.ID, &car.Brand, &car.Model, &car.Year, &car.Price, &car.Mileage, &car.Description,
 		&user.ID, &user.Name, &user.Username, &user.Password); err != nil {
@@ -128,8 +178,21 @@ func (r *queryResolver) GetCarByID(ctx context.Context, id string) (*model.Car, 
 	return &car, nil
 }
 
+// GetUserByID is the resolver for the getUsers field.
+func (r *queryResolver) GetUserByID(ctx context.Context, userID string) (*model.User, error) {
+	var user model.User
+	getUserQuery := `SELECT id, name, username,password FROM users WHERE id = $1`
+	err := r.DB.QueryRow(ctx, getUserQuery, userID).Scan(&user.ID, &user.Name, &user.Username, &user.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return &user, nil
+}
+
 // CarPublished is the resolver for the carPublished field.
-func (r *subscriptionResolver) CarPublished(ctx context.Context) (<-chan *model.Car, error) { //подписка для клиента
+func (r *subscriptionResolver) CarPublished(ctx context.Context) (<-chan *model.Car, error) {
+	//подписка для клиента
 	id := rand.Int() //id канала
 	idString := strconv.Itoa(id)
 	carEvent := make(chan *model.Car, 1) //1-канал может хранить ток 1 эл-т

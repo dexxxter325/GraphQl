@@ -20,11 +20,9 @@ func main() {
 		log.Fatalf("failed to conn to db:%s", err)
 	}
 	resolver := graph.NewResolver(db)
-
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
-
 	http.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
-	http.Handle("/graphql", srv)
+	http.Handle("/graphql", resolver.AuthMiddleware(srv))
 	log.Printf("connect to http://localhost:%v/ for GraphQL playground", 8082)
 	err = http.ListenAndServe(":8082", nil)
 	if err != nil {
