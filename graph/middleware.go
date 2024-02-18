@@ -27,8 +27,7 @@ func (r *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			response.ErrHandler(w, fmt.Errorf("session with this id doesn't exist:%s", err.Error()), http.StatusUnauthorized)
 			return
 		}
-		fmt.Printf("cookie in middleware:%s\nexpiresat:%v\n", cookie.Value, cookie.MaxAge)
-
+		//fmt.Printf("cookie in middleware:%s\nexpiresat:%v\n", cookie.Value, cookie.MaxAge)
 		operationName, err := extractOperationName(req)
 		if err != nil {
 			response.ErrHandler(w, fmt.Errorf("extractOperationName failed in middleware:%s", err.Error()), http.StatusUnauthorized)

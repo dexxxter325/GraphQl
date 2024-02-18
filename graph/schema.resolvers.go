@@ -56,8 +56,7 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 		Path:     "/",
 	}
 	http.SetCookie(cookieResponse.ResponseWriter, cookie)
-	//cookiereq.Header.Set("cookie", cookie.String())
-	fmt.Printf("cookie in login:%s\n", cookie)
+	//fmt.Printf("cookie in login:%s\n", cookie)
 	login.SessionID = sessionId
 	return &login, nil
 }
