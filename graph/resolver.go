@@ -48,11 +48,10 @@ func generateSessionID() (string, error) {
 
 func (r *Resolver) ValidateSession(sessionID string) (bool, error) {
 	var expiresAt time.Time
-	fmt.Println(sessionID)
 	query := `select expires_at from sessions where session_id=$1`
 	row := r.DB.QueryRow(context.Background(), query, sessionID)
 	if err := row.Scan(&expiresAt); err != nil {
-		return false, fmt.Errorf("scan faied in parseSessionID:%s", err)
+		return false, fmt.Errorf("cookie doesn't exist,u must login!:%s", err)
 	}
 	return true, nil
 }

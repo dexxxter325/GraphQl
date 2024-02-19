@@ -23,6 +23,14 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	if err := query.Scan(&user.ID, &user.Name, &user.Username, &user.Password); err != nil {
 		return &user, fmt.Errorf("failed scan in registeerr:%s", err)
 	}
+	//убираем куки прошлого юзера из контекста
+	cookieResponse := ctx.Value("cookie").(*CookieResponseWriter)
+	cookie := &http.Cookie{
+		Name:     "session_id",
+		HttpOnly: true,
+	}
+	http.SetCookie(cookieResponse.ResponseWriter, cookie)
+
 	return &user, nil
 }
 
@@ -64,8 +72,9 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 /*Мы должны создать в middleware структуру с setcookie с рандомным value,извлечь ее там же,затем в login заменить рандомное знач.на нужное*/
 // Logout is the resolver for the logout field.
 func (r *mutationResolver) Logout(ctx context.Context, id string) (bool, error) {
-	ca := ctx.Value("cookie").(*CookieResponseWriter)
-	http.SetCookie(ca.ResponseWriter, &http.Cookie{ //delete cookie
+	//убираем куки прошлого юзера из контекста
+	cookieResponse := ctx.Value("cookie").(*CookieResponseWriter)
+	http.SetCookie(cookieResponse.ResponseWriter, &http.Cookie{
 		Name:     "session_id",
 		HttpOnly: true,
 	})

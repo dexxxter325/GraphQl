@@ -18,22 +18,18 @@ type CookieResponseWriter struct { //to use responsewriter in func Login
 
 func (r *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		cookieResponse := CookieResponseWriter{
-			ResponseWriter: w,
-		}
-		ctx := context.WithValue(req.Context(), "cookie", &cookieResponse)
-		cookie, err := req.Cookie("session_id")
-		if err != nil {
-			response.ErrHandler(w, fmt.Errorf("session with this id doesn't exist:%s", err.Error()), http.StatusUnauthorized)
-			return
-		}
-		//fmt.Printf("cookie in middleware:%s\nexpiresat:%v\n", cookie.Value, cookie.MaxAge)
 		operationName, err := extractOperationName(req)
 		if err != nil {
 			response.ErrHandler(w, fmt.Errorf("extractOperationName failed in middleware:%s", err.Error()), http.StatusUnauthorized)
 			return
 		}
-		if requiresAuthentication(operationName) {
+		if needAuthorization(operationName) {
+			cookie, err := req.Cookie("session_id")
+			if err != nil {
+				response.ErrHandler(w, fmt.Errorf("cookie doesn't exist,u must login!:%s", err.Error()), http.StatusUnauthorized)
+				return
+			}
+			//fmt.Printf("cookie in middleware:%s\n", cookie.Value)
 			// Получаем идентификатор сессии из куки.
 			sessionID := cookie.Value
 			ok, err := r.ValidateSession(sessionID) //истекла ли сессия
@@ -41,8 +37,16 @@ func (r *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 				response.ErrHandler(w, fmt.Errorf("ValidateSession failed:%s", err.Error()), http.StatusUnauthorized)
 				return
 			}
+			next.ServeHTTP(w, req)
 		}
-		next.ServeHTTP(&cookieResponse, req.WithContext(ctx))
+		if !needAuthorization(operationName) {
+			cookieResponse := CookieResponseWriter{
+				ResponseWriter: w,
+			}
+			ctx := context.WithValue(req.Context(), "cookie", &cookieResponse)
+			next.ServeHTTP(&cookieResponse, req.WithContext(ctx))
+		}
+
 	})
 }
 
@@ -75,7 +79,7 @@ func extractOperationName(req *http.Request) (string, error) {
 }
 
 // Функция, определяющая, требует ли данная операция авторизации.
-func requiresAuthentication(operationName string) bool {
+func needAuthorization(operationName string) bool {
 	switch operationName {
 	case "register", "login", "logout":
 		return false // Для этих операций авторизация не требуется.
