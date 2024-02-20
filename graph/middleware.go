@@ -2,6 +2,7 @@ package graph
 
 import (
 	"GRAPHQL/response"
+	"GRAPHQL/service"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -11,10 +12,6 @@ import (
 	"regexp"
 	"strings"
 )
-
-type CookieResponseWriter struct { //to use responsewriter in func Login
-	http.ResponseWriter
-}
 
 func (r *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -32,7 +29,7 @@ func (r *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			//fmt.Printf("cookie in middleware:%s\n", cookie.Value)
 			// Получаем идентификатор сессии из куки.
 			sessionID := cookie.Value
-			ok, err := r.ValidateSession(sessionID) //истекла ли сессия
+			ok, err := r.services.ValidateSession(sessionID) //истекла ли сессия
 			if !ok {
 				response.ErrHandler(w, fmt.Errorf("ValidateSession failed:%s", err.Error()), http.StatusUnauthorized)
 				return
@@ -40,7 +37,7 @@ func (r *Resolver) AuthMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, req)
 		}
 		if !needAuthorization(operationName) {
-			cookieResponse := CookieResponseWriter{
+			cookieResponse := service.CookieResponseWriter{
 				ResponseWriter: w,
 			}
 			ctx := context.WithValue(req.Context(), "cookie", &cookieResponse)

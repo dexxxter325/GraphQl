@@ -3,6 +3,7 @@ package main
 import (
 	"GRAPHQL/graph"
 	"GRAPHQL/postgres"
+	"GRAPHQL/service"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/joho/godotenv"
@@ -19,7 +20,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to conn to db:%s", err)
 	}
-	resolver := graph.NewResolver(db)
+	services := service.NewPostgresService(db)
+	resolver := graph.NewResolver(services)
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 	http.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
 	http.Handle("/graphql", resolver.AuthMiddleware(srv))
