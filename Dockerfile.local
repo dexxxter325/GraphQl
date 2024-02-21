@@ -1,0 +1,14 @@
+FROM golang:1.22-alpine3.19 AS builder
+
+RUN go version
+
+COPY ./ /GRAPHQL
+
+WORKDIR /GRAPHQL
+
+RUN go mod download
+RUN go build -o graphql ./server/server.go
+
+EXPOSE 82
+
+CMD ["./graphql"]
