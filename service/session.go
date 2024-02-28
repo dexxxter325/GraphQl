@@ -27,6 +27,10 @@ func (p *postgresService) ValidateSession(sessionID string) (bool, error) {
 	if err := row.Scan(&expiresAt); err != nil {
 		return false, fmt.Errorf("cookie doesn't exist,u must login!:%s", err)
 	}
+	currentTime := time.Now()
+	if currentTime.After(expiresAt) {
+		return false, fmt.Errorf("session has expired")
+	}
 	return true, nil
 }
 
